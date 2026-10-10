@@ -1,3 +1,6 @@
+-- تهيئة قاعدة بيانات نظام إدارة التذاكر
+-- ينفذ تلقائيًا عند أول تشغيل للحاوية
+
 CREATE TABLE IF NOT EXISTS tickets (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -15,3 +18,8 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) DEFAULT 'user',
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- إضافة مستخدم افتراضي (كلمة المرور: admin123)
+INSERT INTO users (username, email, password_hash, role)
+VALUES ('admin', 'admin@ticketing.local', 'admin123', 'admin')
+ON CONFLICT (username) DO NOTHING;
