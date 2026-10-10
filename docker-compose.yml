@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # ═══════════════════════════════════════
+  # قاعدة البيانات - PostgreSQL
+  # ═══════════════════════════════════════
+  db:
+    image: postgres:16-alpine
+    container_name: ticketing_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-SecurePass123!}
+      POSTGRES_DB: ${DB_NAME:-ticketing_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-ticketing_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # ═══════════════════════════════════════
+  # الباك اند - ASP.NET Core
+  # ═══════════════════════════════════════
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ticketing_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${APP_ENV:-Development}
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${DB_NAME:-ticketing_db};Username=${DB_USER:-admin};Password=${DB_PASSWORD:-SecurePass123!}
+    ports:
+      - "3000:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # ═══════════════════════════════════════
+  # الفرونت اند - React + Nginx
+  # ═══════════════════════════════════════
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ticketing_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:
+    driver: bridge
